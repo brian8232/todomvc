@@ -67,10 +67,11 @@ Analyze this feature as a whole and provide detailed documentation in JSON forma
 Return ONLY valid JSON (no markdown, no backticks) with this structure:
 {
   "featureName": "Clear, descriptive name for this feature",
-  "description": "What this feature does and its purpose (3-4 sentences)",
-  "howItWorks": "High-level explanation of the architecture and flow (5-7 sentences)",
-  "technicalDetails": "Key implementation details, data structures, algorithms, patterns used (7-10 sentences)",
-  "errorHandling": "List of error scenarios, error messages, and how they're handled. Format as markdown list with explanations.",
+  "plainEnglish": "Explain what this feature does in simple, non-technical language that anyone could understand (3-4 sentences)",
+  "description": "What this feature does and its purpose from a technical perspective (2-3 short paragraphs, separated by \\n\\n)",
+  "howItWorks": "High-level explanation of the architecture and flow. Break into 3-4 short paragraphs, separated by \\n\\n. Each paragraph should focus on one aspect.",
+  "technicalDetails": "Key implementation details. Format as bullet points using this exact format: • Point one\\n• Point two\\n• Point three (7-10 bullet points)",
+  "errorHandling": "Array of error objects with this structure: [{errorMessage: 'exact error string', explanation: 'what causes it and how to resolve'}]. Include 5-8 common errors.",
   "flowchart": "Mermaid flowchart code showing the main user flow and logic. Use 'graph TD' format with clear steps."
 }`;
 
@@ -99,7 +100,7 @@ Return ONLY valid JSON (no markdown, no backticks) with this structure:
 
 // Create Notion page with content in body
 async function createNotionPage(featureData, filePaths) {
-  const { featureName, description, howItWorks, technicalDetails, errorHandling, flowchart } = featureData;
+  const { featureName, plainEnglish, description, howItWorks, technicalDetails, errorHandling, flowchart } = featureData;
   
   try {
     // Check if page already exists
@@ -115,6 +116,61 @@ async function createNotionPage(featureData, filePaths) {
 
     // Generate Mermaid chart URL
     const mermaidImageUrl = `https://mermaid.ink/img/${Buffer.from(flowchart).toString('base64')}`;
+
+    // Helper function to create paragraphs from text with \n\n separators
+    const createParagraphs = (text) => {
+      return text.split('\n\n').map(para => ({
+        object: 'block',
+        type: 'paragraph',
+        paragraph: {
+          rich_text: [{ type: 'text', text: { content: para.trim() } }]
+        }
+      }));
+    };
+
+    // Helper function to create bullet points from text with \n separators
+    const createBulletList = (text) => {
+      return text.split('\n').filter(line => line.trim()).map(item => ({
+        object: 'block',
+        type: 'bulleted_list_item',
+        bulleted_list_item: {
+          rich_text: [{ type: 'text', text: { content: item.replace(/^[•\-]\s*/, '').trim() } }]
+        }
+      }));
+    };
+
+    // Helper function to create error blocks
+    const createErrorBlocks = (errors) => {
+      const blocks = [];
+      errors.forEach(error => {
+        // Add error message as code
+        blocks.push({
+          object: 'block',
+          type: 'bulleted_list_item',
+          bulleted_list_item: {
+            rich_text: [
+              { 
+                type: 'text', 
+                text: { content: error.errorMessage },
+                annotations: { code: true }
+              }
+            ]
+          }
+        });
+        // Add explanation as indented paragraph
+        blocks.push({
+          object: 'block',
+          type: 'paragraph',
+          paragraph: {
+            rich_text: [{ 
+              type: 'text', 
+              text: { content: `   ${error.explanation}` }
+            }]
+          }
+        });
+      });
+      return blocks;
+    };
 
     // Create page content blocks
     const contentBlocks = [
@@ -134,16 +190,30 @@ async function createNotionPage(featureData, filePaths) {
         object: 'block',
         type: 'heading_2',
         heading_2: {
-          rich_text: [{ type: 'text', text: { content: '📋 Description' } }]
+          rich_text: [{ type: 'text', text: { content: '💡 What This Does (Plain English)' } }]
         }
       },
       {
         object: 'block',
-        type: 'paragraph',
-        paragraph: {
-          rich_text: [{ type: 'text', text: { content: description } }]
+        type: 'callout',
+        callout: {
+          rich_text: [{ type: 'text', text: { content: plainEnglish } }],
+          icon: { emoji: '💡' }
         }
       },
+      {
+        object: 'block',
+        type: 'divider',
+        divider: {}
+      },
+      {
+        object: 'block',
+        type: 'heading_2',
+        heading_2: {
+          rich_text: [{ type: 'text', text: { content: '📋 Description' } }]
+        }
+      },
+      ...createParagraphs(description),
       {
         object: 'block',
         type: 'divider',
@@ -156,13 +226,7 @@ async function createNotionPage(featureData, filePaths) {
           rich_text: [{ type: 'text', text: { content: '⚙️ How It Works' } }]
         }
       },
-      {
-        object: 'block',
-        type: 'paragraph',
-        paragraph: {
-          rich_text: [{ type: 'text', text: { content: howItWorks } }]
-        }
-      },
+      ...createParagraphs(howItWorks),
       {
         object: 'block',
         type: 'divider',
@@ -175,13 +239,7 @@ async function createNotionPage(featureData, filePaths) {
           rich_text: [{ type: 'text', text: { content: '🔧 Technical Details' } }]
         }
       },
-      {
-        object: 'block',
-        type: 'paragraph',
-        paragraph: {
-          rich_text: [{ type: 'text', text: { content: technicalDetails } }]
-        }
-      },
+      ...createBulletList(technicalDetails),
       {
         object: 'block',
         type: 'divider',
@@ -194,13 +252,7 @@ async function createNotionPage(featureData, filePaths) {
           rich_text: [{ type: 'text', text: { content: '⚠️ Error Handling' } }]
         }
       },
-      {
-        object: 'block',
-        type: 'paragraph',
-        paragraph: {
-          rich_text: [{ type: 'text', text: { content: errorHandling } }]
-        }
-      },
+      ...createErrorBlocks(errorHandling),
       {
         object: 'block',
         type: 'divider',
