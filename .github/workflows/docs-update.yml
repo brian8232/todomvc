@@ -8,6 +8,7 @@ on:
     types: [closed]
     branches:
       - main
+  workflow_dispatch:  # Add this line to enable manual trigger
 
 jobs:
   update-docs:
