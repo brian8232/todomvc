@@ -27,8 +27,8 @@ jobs:
           node-version: '18'
       
       - name: Install dependencies
-        run: | 
-          npm install --no-save @anthropic-ai/sdk @notionhq/client
+        run: |
+          npm install --omit=dev --ignore-scripts @anthropic-ai/sdk @notionhq/client
       
       - name: Run documentation generator
         env:
