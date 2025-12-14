@@ -133,20 +133,71 @@ async function createNotionPage(fileData, filePath) {
       }
     };
 
+    // Generate Mermaid chart URL for visual rendering
+    const mermaidEncoded = encodeURIComponent(flowchart);
+    const mermaidImageUrl = `https://mermaid.ink/img/${Buffer.from(flowchart).toString('base64')}`;
+
+    let pageId;
     if (existingPages.results.length > 0) {
       // Update existing page
+      pageId = existingPages.results[0].id;
       await notion.pages.update({
-        page_id: existingPages.results[0].id,
+        page_id: pageId,
         properties: pageProperties
       });
       console.log(`✓ Updated: ${featureName}`);
     } else {
       // Create new page
-      await notion.pages.create({
+      const newPage = await notion.pages.create({
         parent: { database_id: DATABASE_ID },
         properties: pageProperties
       });
+      pageId = newPage.id;
       console.log(`✓ Created: ${featureName}`);
+    }
+
+    // Add flowchart as an image block in the page content
+    try {
+      await notion.blocks.children.append({
+        block_id: pageId,
+        children: [
+          {
+            object: 'block',
+            type: 'heading_2',
+            heading_2: {
+              rich_text: [{ type: 'text', text: { content: 'Visual Flowchart' } }]
+            }
+          },
+          {
+            object: 'block',
+            type: 'image',
+            image: {
+              type: 'external',
+              external: {
+                url: mermaidImageUrl
+              }
+            }
+          },
+          {
+            object: 'block',
+            type: 'heading_2',
+            heading_2: {
+              rich_text: [{ type: 'text', text: { content: 'Mermaid Code' } }]
+            }
+          },
+          {
+            object: 'block',
+            type: 'code',
+            code: {
+              rich_text: [{ type: 'text', text: { content: flowchart } }],
+              language: 'mermaid'
+            }
+          }
+        ]
+      });
+      console.log(`  ✓ Added visual flowchart to page`);
+    } catch (blockError) {
+      console.error(`  Warning: Could not add flowchart blocks: ${blockError.message}`);
     }
   } catch (error) {
     console.error(`Error creating/updating Notion page for ${featureName}:`, error);
