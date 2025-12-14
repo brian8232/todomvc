@@ -141,35 +141,27 @@ async function createNotionPage(featureData, filePaths) {
 
     // Helper function to create error blocks
     const createErrorBlocks = (errors) => {
-      const blocks = [];
-      errors.forEach(error => {
-        // Add error message as code
-        blocks.push({
-          object: 'block',
-          type: 'bulleted_list_item',
-          bulleted_list_item: {
-            rich_text: [
-              { 
-                type: 'text', 
-                text: { content: error.errorMessage },
-                annotations: { code: true }
-              }
-            ]
-          }
-        });
-        // Add explanation as indented paragraph
-        blocks.push({
-          object: 'block',
-          type: 'paragraph',
-          paragraph: {
-            rich_text: [{ 
+      return errors.map(error => ({
+        object: 'block',
+        type: 'bulleted_list_item',
+        bulleted_list_item: {
+          rich_text: [
+            { 
               type: 'text', 
-              text: { content: `   ${error.explanation}` }
-            }]
-          }
-        });
-      });
-      return blocks;
+              text: { content: error.errorMessage },
+              annotations: { code: true }
+            },
+            {
+              type: 'text',
+              text: { content: ' - ' }
+            },
+            {
+              type: 'text',
+              text: { content: error.explanation }
+            }
+          ]
+        }
+      }));
     };
 
     // Create page content blocks
